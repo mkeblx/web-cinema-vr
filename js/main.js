@@ -146,6 +146,8 @@ function keyPressed (e) {
 	if (e.keyCode == 'R'.charCodeAt(0)) {
 		console.log(vrControls.getVRState());
 		vrControls._vrInput.resetSensor();
+	} else if (e.keyCode == 'F'.charCodeAt(0)) {
+		vrEffect.setFullScreen(true);
 	}
 }
 
