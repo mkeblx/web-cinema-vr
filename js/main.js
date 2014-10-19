@@ -24,6 +24,8 @@ var config = {
 	autoplay: false
 };
 
+var _screen;
+
 // modes: cube, screen
 var mode = 'screen';
 
@@ -89,8 +91,8 @@ function setupScene() {
 
 	if (mode == 'cube')
 		setupCubes();
-
-	setupScreen();
+	else
+		setupScreen();
 }
 
 function setupFloor() {
@@ -157,18 +159,18 @@ function setupCubes() {
 }
 
 function setupScreen() {
-	var s = 100;
-	var geo = new THREE.PlaneGeometry(16, 9);
+	var s = 10;
+	var geo = new THREE.PlaneGeometry(16*s, 9*s);
 
 	var vidMat = new THREE.MeshBasicMaterial({
 		map: texture
 	});
 
-	var mesh = new THREE.Mesh(geo, vidMat);
+	_screen = new THREE.Mesh(geo, vidMat);
 
-	mesh.position.set(0,0, -10);
+	_screen.position.set(0,0, -80);
 
-	scene.add(mesh);
+	scene.add(_screen);
 }
 
 function setupRendering() {
@@ -194,7 +196,7 @@ function setupRendering() {
 }
 
 function setupEvents() {
-	window.addEventListener('resize', onWindowResize, false);
+	//window.addEventListener('resize', onWindowResize, false);
 	document.addEventListener('keydown', keyPressed, false);
 
 	fullScreenButton.addEventListener('click', function(){
@@ -210,6 +212,8 @@ function onWindowResize() {
 }
 
 function keyPressed (e) {
+	console.log(e.keyCode);
+
 	if (e.keyCode == 'R'.charCodeAt(0)) {
 		console.log(vrControls._vrInput);
 		vrControls._vrInput.zeroSensor();
@@ -217,7 +221,19 @@ function keyPressed (e) {
 		vrEffect.setFullScreen(true);
 	} else if (e.keyCode == ' '.charCodeAt(0)) {
 		video.paused ? video.play() : video.pause();
+	} else if (e.keyCode == 'O'.charCodeAt(0)) {
+		moveScreen(-10);
+	} else if (e.keyCode == 'P'.charCodeAt(0)) {
+		moveScreen(10);
 	}
+}
+
+function moveScreen(d) {
+	var min = -240;
+	var max = -30;
+	var newZ = _screen.position.z + d;
+	var newZ = Math.min(Math.max(min, newZ), max);
+	_screen.position.setZ(newZ);
 }
 
 function animate(t) {
