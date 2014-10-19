@@ -21,7 +21,7 @@ var videoData = {
 };
 
 var config = {
-	autoplay: false
+	autoplay: 0
 };
 
 var _screen;
@@ -43,10 +43,10 @@ function load() {
 
 
 function init() {
-	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 3000);
+	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 5, 5000);
 
 	scene = new THREE.Scene();
-	//scene.fog = new THREE.Fog(0xffffff, 0, 1500);
+	scene.fog = new THREE.Fog(0xffffff, 0, 6000);
 
 	fullScreenButton = document.querySelector('.button');
 
@@ -56,20 +56,26 @@ function init() {
 
 	setupScene();
 
+	setupUsers();
+
 	setupEvents();
 }
 
 function setupLights() {
 	var light = new THREE.DirectionalLight(0xffffff, 1.5);
 	light.position.set(1, 1, 1);
-	scene.add(light);
+	//scene.add(light);
 
 	light = new THREE.DirectionalLight(0xffffff, 0.75);
 	light.position.set(-1, -0.5, -1);
 	scene.add(light);
 
-	light = new THREE.AmbientLight(0x666666);
-	scene.add(light);
+	//light = new THREE.AmbientLight(0x666666);
+	//scene.add(light);
+
+	var light = new THREE.HemisphereLight( 0xfff0f0, 0x606066 );
+  light.position.set( 1, 1, 1 );
+  scene.add( light );	
 }
 
 function setupVideo() {
@@ -84,6 +90,10 @@ function setupVideo() {
 	texture.generateMipmaps = false;
 }
 
+function setupUsers() {
+
+}
+
 function setupScene() {
 	setupLights();
 
@@ -93,6 +103,67 @@ function setupScene() {
 		setupCubes();
 	else
 		setupScreen();
+
+	//setupLoader();
+
+	setupEnv();
+}
+
+function setupEnv() {
+	//ground
+	var geometry = new THREE.PlaneGeometry( 5000, 5000, 15, 15 );
+  geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
+  var material = new THREE.MeshLambertMaterial( { color: 0x407000, shading: THREE.FlatShading } );
+
+  for ( var i = 0; i < geometry.vertices.length; i ++ ) {
+
+    var vertex = geometry.vertices[ i ];
+
+    var distance = ( vertex.distanceTo( scene.position ) / 5 ) - 250;
+
+    vertex.x += Math.random() * 100 - 50;
+    vertex.y = Math.random() * Math.max( 0, distance );
+    vertex.x += Math.random() * 100 - 50;
+  }
+
+  geometry.computeFaceNormals();
+
+  var mesh = new THREE.Mesh( geometry, material );
+  scene.add( mesh );
+
+  mesh.castShadow = true;
+	mesh.receiveShadow = false;
+
+	//trees
+  var geometry = new THREE.Trees( mesh );
+  var material = new THREE.MeshBasicMaterial( { color: 0x407000, side: THREE.DoubleSide } );
+  var mesh = new THREE.Mesh( geometry, material );
+
+  mesh.castShadow = true;
+	mesh.receiveShadow = false;
+  scene.add( mesh );
+
+  //sky
+  var geometry = new THREE.Sky();
+  var material = new THREE.MeshBasicMaterial( { color: 0xffffff } );
+  var mesh = new THREE.Mesh( geometry, material );
+  scene.add( mesh );
+}
+
+function setupLoader() {
+	var dae;
+	var loader = new THREE.ColladaLoader();
+	loader.options.convertUpAxis = true;
+	loader.load( 'models/webvrcinemaforest.dae', function ( collada ) {
+
+		dae = collada.scene;
+
+		//dae.scale.x = dae.scale.y = dae.scale.z = 0.002;
+		dae.updateMatrix();
+
+		scene.add(dae);
+
+	} );
 }
 
 function setupFloor() {
@@ -168,7 +239,7 @@ function setupScreen() {
 
 	_screen = new THREE.Mesh(geo, vidMat);
 
-	_screen.position.set(0,0, -80);
+	_screen.position.set(0,45, -170);
 
 	scene.add(_screen);
 }
@@ -177,7 +248,8 @@ function setupRendering() {
 	renderer = new THREE.WebGLRenderer({
 		antialias: false,
 	});
-	renderer.setClearColor(0x000000, 1);
+	renderer.setClearColor(0xf0f0ff, 1);
+	renderer.shadowMapEnabled = true
 
 	function VREffectLoaded(error) {
 		if (error) {
@@ -196,11 +268,11 @@ function setupRendering() {
 }
 
 function setupEvents() {
-	//window.addEventListener('resize', onWindowResize, false);
+	window.addEventListener('resize', onWindowResize, false);
 	document.addEventListener('keydown', keyPressed, false);
 
 	fullScreenButton.addEventListener('click', function(){
-		vrEffect.setFullScreen(true);
+		enterTheRift();
 	}, true);
 }
 
@@ -218,7 +290,7 @@ function keyPressed (e) {
 		console.log(vrControls._vrInput);
 		vrControls._vrInput.zeroSensor();
 	} else if (e.keyCode == 'F'.charCodeAt(0)) {
-		vrEffect.setFullScreen(true);
+		enterTheRift();
 	} else if (e.keyCode == ' '.charCodeAt(0)) {
 		video.paused ? video.play() : video.pause();
 	} else if (e.keyCode == 'O'.charCodeAt(0)) {
@@ -226,6 +298,13 @@ function keyPressed (e) {
 	} else if (e.keyCode == 'P'.charCodeAt(0)) {
 		moveScreen(10);
 	}
+}
+
+function enterTheRift() {
+	var W = 1920, H = 1080;
+
+	renderer.setSize(W, H);
+	vrEffect.setFullScreen(true);
 }
 
 function moveScreen(d) {
@@ -254,15 +333,14 @@ function animate(t) {
 		}
 	}
 
-	var s = 200;
+	var s = 1;
 
-	var pos = [0,0,0];
+	var pos = [0,20,0];
 	if (vrState) {
 		var vrPos = vrState.hmd.position;
-		pos = vrPos;
-		pos[0] *= s;
-		pos[1] *= s;
-		pos[2] *= s;
+		pos[0] = pos[0] + vrPos[0]*s;
+		pos[1] = pos[1] + vrPos[1]*s;
+		pos[2] = pos[2] + vrPos[2]*s;
 	}
 
 	camera.position.fromArray(pos);
