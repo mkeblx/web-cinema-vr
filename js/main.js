@@ -58,6 +58,8 @@ var users = [
 ];
 var me;
 
+var headObj;
+
 var playerId = 'p0';
 
 var fbRef, roomRef, usersRef, myRef;
@@ -120,7 +122,23 @@ function setupFirebase() {
 		var env = snapshot.val();
 
 		// todo: update env
-		console.log();
+		// console.log();
+	});
+
+	roomRef.child('screenDist').on('value', function(snapshot){
+		console.log('update screen pos');
+
+		var dist = snapshot.val();
+		console.log(dist);
+
+		_screen.position.setZ(dist);
+		// set screen dist
+	});
+
+	usersRef.on('value', function(snapshot){
+		var _users = snapshot.val();
+
+		processUsers(_users);
 	});
 
 	/*roomRef.update({
@@ -128,9 +146,33 @@ function setupFirebase() {
 	});*/
 
 	myRef.update({
+		id: playerId,
 		position: [0,0,0],
 		orientation: [0,0,0,0]
 	});
+}
+
+function processUsers(users) {
+	//_.forEach(users, processUser);
+	var orientation;
+
+	var u;
+
+	if (playerId == 'p1') {
+		u = users['p2'];
+	} else {
+		u = users['p1'];
+	}
+
+	orientation = u.orientation;
+
+	updateHeadObj([0,0,0], orientation);
+}
+
+function processUser(user) {
+	// id, orientation, position
+
+	//update objects
 }
 
 function setupLights() {
@@ -165,10 +207,14 @@ function setupVideo() {
 
 function setupUsers() {
 	// setup self
-	var headObj = createUserMesh();
+	headObj = createUserMesh();
 
 	var hs = 8;
 	headObj.scale.set(hs,hs,hs);
+
+	headObj.position.set(0, 20, -20);
+
+	scene.add(headObj);
 
 	var user = {
 		position: [0,6,0],
@@ -181,9 +227,12 @@ function setupUsers() {
 	me = user;
 
 	// tmp, don't need own
-	scene.add(headObj);
 
 	users.push(user);
+}
+
+function updateHeadObj(position, orientation) {
+	headObj.quaternion.fromArray(orientation);
 }
 
 function createUserMesh() {
@@ -489,7 +538,7 @@ function moveScreen(d) {
 	if (config.social) {
 		roomRef.update({
 			screenDist: newZ
-		});		
+		});
 	}
 }
 
@@ -551,7 +600,7 @@ function animate(t) {
 }
 
 function updateUsers(dt, vrState) {
-	var fps = 2;
+	var fps = 1;
 	lastUpdate += dt;
 	if (lastUpdate > 1/fps) {
 		lastUpdate = 0;
@@ -560,7 +609,7 @@ function updateUsers(dt, vrState) {
 	}
 
 	if (vrState) {
-		//console.log(me.hmdPosition);
+		console.log(me.hmdPosition);
 
 		setUserPosition();
 	}
@@ -569,8 +618,8 @@ function updateUsers(dt, vrState) {
 	for (var i = 0; i < users.length; i++) {
 		var u = users[i];
 
-		u.headObj.position.fromArray( u.hmdPosition );
-		u.headObj.quaternion.fromArray( u.hmdOrientation );
+		//u.headObj.position.fromArray( u.hmdPosition );
+		//u.headObj.quaternion.fromArray( u.hmdOrientation );
 	}
 }
 
