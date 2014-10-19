@@ -13,6 +13,19 @@ var vrControls;
 
 var objects = [];
 
+var video, vid;
+var texture;
+
+var videoData = {
+	src: 'cache/dO4k2Rvs94I.webm'
+};
+
+var config = {
+	autoplay: false
+};
+
+// modes: cube, screen
+var mode = 'screen';
 
 var has = {
 	WebVR: !!navigator.getVRDevices
@@ -31,13 +44,15 @@ function init() {
 	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 3000);
 
 	scene = new THREE.Scene();
-	scene.fog = new THREE.Fog(0xffffff, 0, 1500);
+	//scene.fog = new THREE.Fog(0xffffff, 0, 1500);
 
 	fullScreenButton = document.querySelector('.button');
 
 	setupRendering();
+
+	setupVideo();
+
 	setupScene();
-	setupLights();
 
 	setupEvents();
 }
@@ -55,8 +70,30 @@ function setupLights() {
 	scene.add(light);
 }
 
+function setupVideo() {
+	video = document.createElement('video');
+	video.src = videoData.src;
+	if (config.autoplay) video.play();
+
+	texture = new THREE.Texture(video);
+	texture.minFilter = THREE.LinearFilter;
+	texture.magFilter = THREE.LinearFilter;
+	texture.format = THREE.RGBFormat;
+	texture.generateMipmaps = false;
+}
+
 function setupScene() {
-	// floor
+	setupLights();
+
+	//setupFloor();
+
+	if (mode == 'cube')
+		setupCubes();
+
+	setupScreen();
+}
+
+function setupFloor() {
 	var geometry = new THREE.PlaneGeometry(2000, 2000, 1, 1);
 	geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
 
@@ -71,29 +108,44 @@ function setupScene() {
 	var mesh = new THREE.Mesh(geometry, material);
 	mesh.receiveShadow = true;
 
-	//scene.add(mesh);
+	scene.add(mesh);
+}
 
+function setupCubes() {	
+	var geo = new THREE.BoxGeometry(30, 30, 30);
 
-	// cubes
-	geometry = new THREE.BoxGeometry(30, 30, 30);
+	console.log(texture);
+
+	var s = 1.6;
+
+	var blankMat = new THREE.MeshBasicMaterial({
+		color: 0x000000, shading: THREE.FlatShading
+	});
+
+	var vidMat = new THREE.MeshBasicMaterial({
+		map: texture
+	});
+
+	var cubeMat = new THREE.MeshFaceMaterial([
+		vidMat, vidMat, blankMat, blankMat, vidMat, vidMat
+		]);
 
 	for (var i = 0; i < 200; i ++) {
+		var object = new THREE.Mesh(geo, cubeMat);
 
-		var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
-
-		object.material.ambient = object.material.color;
+		//object.material.ambient = object.material.color;
 
 		object.position.x = Math.random() * 1000 - 500;
-		object.position.y = Math.random() * 600 - 300;
+		object.position.y = Math.random() * 700 - 350;
 		object.position.z = Math.random() * 800 - 400;
 
-		object.rotation.x = Math.random() * 2 * Math.PI;
+		//object.rotation.x = Math.random() * 2 * Math.PI;
 		object.rotation.y = Math.random() * 2 * Math.PI;
-		object.rotation.z = Math.random() * 2 * Math.PI;
+		//object.rotation.z = Math.random() * 2 * Math.PI;
 
-		object.scale.x = Math.random() * 2 + 1;
-		object.scale.y = Math.random() * 2 + 1;
-		object.scale.z = Math.random() * 2 + 1;
+		object.scale.x = 16/9 * s;
+		object.scale.y = 9/9 * s;
+		object.scale.z = 16/9 * s;
 
 		object.castShadow = true;
 		object.receiveShadow = true;
@@ -104,11 +156,26 @@ function setupScene() {
 	}
 }
 
+function setupScreen() {
+	var s = 100;
+	var geo = new THREE.PlaneGeometry(16, 9);
+
+	var vidMat = new THREE.MeshBasicMaterial({
+		map: texture
+	});
+
+	var mesh = new THREE.Mesh(geo, vidMat);
+
+	mesh.position.set(0,0, -10);
+
+	scene.add(mesh);
+}
+
 function setupRendering() {
 	renderer = new THREE.WebGLRenderer({
 		antialias: false,
 	});
-	renderer.setClearColor(0xffffff, 1);
+	renderer.setClearColor(0x000000, 1);
 
 	function VREffectLoaded(error) {
 		if (error) {
@@ -144,10 +211,12 @@ function onWindowResize() {
 
 function keyPressed (e) {
 	if (e.keyCode == 'R'.charCodeAt(0)) {
-		console.log(vrControls.getVRState());
-		vrControls._vrInput.resetSensor();
+		console.log(vrControls._vrInput);
+		vrControls._vrInput.zeroSensor();
 	} else if (e.keyCode == 'F'.charCodeAt(0)) {
 		vrEffect.setFullScreen(true);
+	} else if (e.keyCode == ' '.charCodeAt(0)) {
+		video.paused ? video.play() : video.pause();
 	}
 }
 
@@ -156,7 +225,20 @@ function animate(t) {
 
 	var vrState = vrControls.getVRState();
 
-	var s = 500;
+	for (var i = 0; i < objects.length; i++) {
+		var obj = objects[i];
+		//obj.rotation.x = Math.sin(1/(1000+i) * t);
+		var r = (i / 20000) - 1/10000;
+		obj.rotation.y += r;
+
+		obj.position.y += 0.1;
+
+		if (obj.position.y > 500) {
+			obj.position.y -= 800;
+		}
+	}
+
+	var s = 200;
 
 	var pos = [0,0,0];
 	if (vrState) {
@@ -168,6 +250,11 @@ function animate(t) {
 	}
 
 	camera.position.fromArray(pos);
+
+	if (video.readyState === video.HAVE_ENOUGH_DATA) {
+		if (texture)
+			texture.needsUpdate = true;
+	}
 
 	vrControls.update();
 	vrEffect.render(scene, camera);

@@ -65,7 +65,7 @@ THREE.VREffect = function ( renderer, done ) {
 		var vrHMD = this._vrHMD;
 		renderer.enableScissorTest( false );
 		// VR render mode if HMD is available
-		if ( vrHMD ) {
+		if ( vrHMD && this._fullScreen ) {
 			this.renderStereo.apply( this, arguments );
 			return;
 		}
