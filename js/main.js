@@ -20,6 +20,8 @@ var videoData = {
 	src: 'cache/dO4k2Rvs94I.webm'
 };
 
+var duckie;
+
 var config = {
 	autoplay: 0,
 	fbUrl: 'https://web-cinema-vr.firebaseio.com/',
@@ -71,6 +73,7 @@ var lastUpdate = 0;
 window.addEventListener('load', load);
 
 function load() {
+	loadDuckie();
 	playerId = prompt('Username: ');
 
 	init();
@@ -90,6 +93,7 @@ function init() {
 		setupFirebase();
 
 	setupRendering();
+
 
 	setupVideo();
 
@@ -212,7 +216,7 @@ function setupUsers() {
 	var hs = 8;
 	headObj.scale.set(hs,hs,hs);
 
-	headObj.position.set(0, 20, -20);
+	headObj.position.set(0, 10, -10);
 
 	scene.add(headObj);
 
@@ -236,11 +240,38 @@ function updateHeadObj(position, orientation) {
 }
 
 function createUserMesh() {
-	var geo = new THREE.BoxGeometry(0.7, 0.35, 0.35);
-	var mat = new THREE.MeshPhongMaterial({ color: 0x00f0ff });
-	var mesh = new THREE.Mesh(geo, mat);
+	return duckie;
+}
 
-	return mesh;	
+function loadDuckie() {
+  var loader = new THREE.ObjectLoader();
+
+	var callbackFinished = function(obj) {
+		var container = new THREE.Object3D();
+
+		var s = 0.01;
+		obj.scale.set(s,s,s);
+		obj.position.set(1,-1.3,0);
+		//obj.rotation.set(0,0.6,0);
+
+		container.scale.set(s,s,s);
+		container.add(obj);
+
+		//container.rotation.set(0,90*Math.PI/180,0);
+		//container.position.set(0, -83, 0);
+
+		duckie = container;
+
+		//scene.add(container);
+	};
+
+	loader.load('models/duckie.obj', callbackFinished);
+
+	/*var geo = new THREE.BoxGeometry(0.7, 0.35, 0.35);
+	var mat = new THREE.MeshPhongMaterial({ color: 0x00f0ff });
+	var mesh = new THREE.Mesh(geo, mat);*/
+
+	//return mesh;	
 }
 
 function setupScene() {
@@ -600,7 +631,7 @@ function animate(t) {
 }
 
 function updateUsers(dt, vrState) {
-	var fps = 1;
+	var fps = 10;
 	lastUpdate += dt;
 	if (lastUpdate > 1/fps) {
 		lastUpdate = 0;
