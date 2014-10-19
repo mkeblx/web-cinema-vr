@@ -33,6 +33,20 @@ var has = {
 	WebVR: !!navigator.getVRDevices
 };
 
+var envs = {
+	'earth': {
+		skyColor: 0xf0f0ff,
+		gndColor: 0x407000
+	},
+	'moon': {
+		skyColor: 0x000000
+	},
+	'mars': {
+		skyColor: 0x000000
+	}
+};
+
+var env = envs['earth'];
 
 window.addEventListener('load', load);
 
@@ -43,7 +57,7 @@ function load() {
 
 
 function init() {
-	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 5, 5000);
+	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 5000);
 
 	scene = new THREE.Scene();
 	scene.fog = new THREE.Fog(0xffffff, 0, 6000);
@@ -68,6 +82,7 @@ function setupLights() {
 
 	light = new THREE.DirectionalLight(0xffffff, 0.75);
 	light.position.set(-1, -0.5, -1);
+	light.rotation.set(Math.random(), Math.random(), Math.random());
 	scene.add(light);
 
 	//light = new THREE.AmbientLight(0x666666);
@@ -110,10 +125,26 @@ function setupScene() {
 }
 
 function setupEnv() {
-	//ground
+	var gndColor = env.gndColor;
+
+  var gnd = setupGround(gndColor);
+  scene.add(gnd);
+
+  //sky
+  var geometry = new THREE.Sky();
+  var material = new THREE.MeshBasicMaterial( { color: 0xffffff } );
+  var mesh = new THREE.Mesh( geometry, material );
+  scene.add( mesh );
+
+  setupTrees(gnd);
+
+ 	setupChairs();
+}
+
+function setupGround(color) {
 	var geometry = new THREE.PlaneGeometry( 5000, 5000, 15, 15 );
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
-  var material = new THREE.MeshLambertMaterial( { color: 0x407000, shading: THREE.FlatShading } );
+  var material = new THREE.MeshLambertMaterial( { color: color, shading: THREE.FlatShading } );
 
   for ( var i = 0; i < geometry.vertices.length; i ++ ) {
 
@@ -128,26 +159,45 @@ function setupEnv() {
 
   geometry.computeFaceNormals();
 
-  var mesh = new THREE.Mesh( geometry, material );
-  scene.add( mesh );
+  var gnd = new THREE.Mesh( geometry, material );
 
-  mesh.castShadow = true;
-	mesh.receiveShadow = false;
+	return gnd;
+}
 
-	//trees
-  var geometry = new THREE.Trees( mesh );
+function setupTrees(gnd) {
+  var geometry = new THREE.Trees( gnd );
   var material = new THREE.MeshBasicMaterial( { color: 0x407000, side: THREE.DoubleSide } );
   var mesh = new THREE.Mesh( geometry, material );
 
-  mesh.castShadow = true;
-	mesh.receiveShadow = false;
-  scene.add( mesh );
+  scene.add( mesh );	
+}
 
-  //sky
-  var geometry = new THREE.Sky();
-  var material = new THREE.MeshBasicMaterial( { color: 0xffffff } );
-  var mesh = new THREE.Mesh( geometry, material );
-  scene.add( mesh );
+function setupChairs() {
+  var loader = new THREE.ObjectLoader();
+
+	var callbackFinished = function(obj) {
+		var chairs = new THREE.Object3D();
+
+		var numChairs = 7;
+		var chairWidth = 80;
+
+		for (var i = 0; i < numChairs; i++) {
+			var o = obj.clone();
+			o.position.set(0, 0, chairWidth*i - 240);
+			chairs.add(o);
+		}
+
+		var s = 0.1;
+		chairs.scale.set(s*1.10,s,s);
+		chairs.rotation.set(0,90*Math.PI/180,0);
+		chairs.position.set(0, 10, -2);
+
+		scene.add(chairs);
+		
+		//scene.add(container);
+	};
+
+	loader.load('models/chair.json', callbackFinished);
 }
 
 function setupLoader() {
@@ -248,7 +298,7 @@ function setupRendering() {
 	renderer = new THREE.WebGLRenderer({
 		antialias: false,
 	});
-	renderer.setClearColor(0xf0f0ff, 1);
+	renderer.setClearColor(env.skyColor, 1);
 	renderer.shadowMapEnabled = true
 
 	function VREffectLoaded(error) {
@@ -333,9 +383,9 @@ function animate(t) {
 		}
 	}
 
-	var s = 1;
+	var s = 0.1;
 
-	var pos = [0,20,0];
+	var pos = [0.0,22,-1.3];
 	if (vrState) {
 		var vrPos = vrState.hmd.position;
 		pos[0] = pos[0] + vrPos[0]*s;
