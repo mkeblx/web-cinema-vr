@@ -578,7 +578,7 @@ function setUserPosition() {
 	if (!config.social)
 		return;
 
-	myRef.set({
+	myRef.update({
 		position: me.hmdPosition,
 		orientation: me.hmdOrientation
 	});
