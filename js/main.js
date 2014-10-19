@@ -46,12 +46,17 @@ var envs = {
 	}
 };
 
-var env = envs['earth'];
+var _env = envs['earth'];
+
+var users = [
+];
+
 
 window.addEventListener('load', load);
 
 function load() {
 	init();
+
 	animate();
 }
 
@@ -67,6 +72,8 @@ function init() {
 	setupRendering();
 
 	setupVideo();
+
+	setEnv('earth');
 
 	setupScene();
 
@@ -106,7 +113,23 @@ function setupVideo() {
 }
 
 function setupUsers() {
+	var geo = new THREE.BoxGeometry(0.7, 0.35, 0.35);
+	var mat = new THREE.MeshPhongMaterial({ color: 0x00f0ff });
+	var headObj = new THREE.Mesh(geo, mat);
 
+	headObj.scale.set(10,10,10);
+
+	var user = {
+		position: [0,10,-10],
+		orientation: [0,0,0,0],
+		chairNum: 3, // of 7
+		headObj: headObj
+	};
+
+	scene.add(headObj);
+	console.log(headObj); 
+
+	users.push(user);
 }
 
 function setupScene() {
@@ -121,10 +144,10 @@ function setupScene() {
 
 	//setupLoader();
 
-	setupEnv();
+	setupEnv(_env);
 }
 
-function setupEnv() {
+function setupEnv(env) {
 	var gndColor = env.gndColor;
 
   var gnd = setupGround(gndColor);
@@ -187,10 +210,10 @@ function setupChairs() {
 			chairs.add(o);
 		}
 
-		var s = 0.1;
+		var s = 0.05;
 		chairs.scale.set(s*1.10,s,s);
 		chairs.rotation.set(0,90*Math.PI/180,0);
-		chairs.position.set(0, 10, -2);
+		chairs.position.set(0, 0, -1);
 
 		scene.add(chairs);
 		
@@ -298,7 +321,7 @@ function setupRendering() {
 	renderer = new THREE.WebGLRenderer({
 		antialias: false,
 	});
-	renderer.setClearColor(env.skyColor, 1);
+	//renderer.setClearColor(env.skyColor, 1);
 	renderer.shadowMapEnabled = true
 
 	function VREffectLoaded(error) {
@@ -315,6 +338,13 @@ function setupRendering() {
 	var container = document.createElement('div');
 	document.body.insertBefore(container, document.body.firstChild);
 	container.appendChild(renderer.domElement);
+}
+
+function setEnv(name) {
+	var env = envs[name];
+	_env = env;
+
+	renderer.setClearColor(env.skyColor, 1);
 }
 
 function setupEvents() {
@@ -368,8 +398,7 @@ function moveScreen(d) {
 function animate(t) {
 	requestAnimationFrame(animate);
 
-	var vrState = vrControls.getVRState();
-
+	//cube mode
 	for (var i = 0; i < objects.length; i++) {
 		var obj = objects[i];
 		//obj.rotation.x = Math.sin(1/(1000+i) * t);
@@ -383,9 +412,10 @@ function animate(t) {
 		}
 	}
 
+	var vrState = vrControls.getVRState();
 	var s = 0.1;
 
-	var pos = [0.0,22,-1.3];
+	var pos = [0,6,0];
 	if (vrState) {
 		var vrPos = vrState.hmd.position;
 		pos[0] = pos[0] + vrPos[0]*s;
@@ -394,6 +424,8 @@ function animate(t) {
 	}
 
 	camera.position.fromArray(pos);
+
+	updateUsers(t, vrState);
 
 	if (video.readyState === video.HAVE_ENOUGH_DATA) {
 		if (texture)
@@ -404,5 +436,18 @@ function animate(t) {
 	vrEffect.render(scene, camera);
 
 	time = Date.now();
+}
+
+function updateUsers(t, vrState) {
+	if (vrState && users.length) {
+		users[0].orientation = vrState.hmd.rotation;
+	}
+
+	for (var i = 0; i < users.length; i++) {
+		var u = users[i];
+
+		u.headObj.position.fromArray( u.position );
+		u.headObj.quaternion.fromArray( u.orientation );
+	}
 }
 
