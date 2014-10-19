@@ -13,7 +13,7 @@ THREE.Trees = function ( landscape ) {
 		var z = Math.random() * 5000 - 2500;
 
 		// limit in front of screen
-		if ((z < 10 && z > -190) && (Math.abs(x) < 100)) 
+		if ((z < 10 && z > -220) && (Math.abs(x) < 100)) 
 			continue;
 
 		raycaster.ray.origin.set( x, 500, z );

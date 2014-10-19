@@ -21,8 +21,13 @@ var videoData = {
 };
 
 var config = {
-	autoplay: 0
+	autoplay: 0,
+	fbUrl: 'https://web-cinema-vr.firebaseio.com/',
+	roomName: 'vrhackathon',
+	social: 1
 };
+
+var numChairs = 7;
 
 var _screen;
 
@@ -46,17 +51,27 @@ var envs = {
 	}
 };
 
-var _env = envs['earth'];
+var environment = 'earth';
+var _env = envs[environment];
 
 var users = [
 ];
+var me;
+
+var playerId = 'p0';
+
+var fbRef, roomRef, usersRef, myRef;
+
+var lastUpdate = 0;
+
 
 
 window.addEventListener('load', load);
 
 function load() {
-	init();
+	playerId = prompt('Username: ');
 
+	init();
 	animate();
 }
 
@@ -69,17 +84,53 @@ function init() {
 
 	fullScreenButton = document.querySelector('.button');
 
+	if (config.social)
+		setupFirebase();
+
 	setupRendering();
 
 	setupVideo();
 
-	setEnv('earth');
+	setEnv(environment);
 
 	setupScene();
 
 	setupUsers();
 
 	setupEvents();
+}
+
+function setupFirebase() {
+	fbRef = new Firebase(config.fbUrl);
+
+	var roomName = config.roomName;
+
+	roomRef = fbRef.child('rooms/'+roomName);
+	usersRef = roomRef.child('users');
+
+	myRef = usersRef.child(playerId);
+
+	roomRef.on('value', function(snapshot){
+
+	});
+
+	roomRef.child('env').on('value', function(snapshot) {
+		console.log('change env');
+
+		var env = snapshot.val();
+
+		// todo: update env
+		console.log();
+	});
+
+	/*roomRef.update({
+		env: environment
+	});*/
+
+	myRef.update({
+		position: [0,0,0],
+		orientation: [0,0,0,0]
+	});
 }
 
 function setupLights() {
@@ -113,23 +164,34 @@ function setupVideo() {
 }
 
 function setupUsers() {
-	var geo = new THREE.BoxGeometry(0.7, 0.35, 0.35);
-	var mat = new THREE.MeshPhongMaterial({ color: 0x00f0ff });
-	var headObj = new THREE.Mesh(geo, mat);
+	// setup self
+	var headObj = createUserMesh();
 
-	headObj.scale.set(10,10,10);
+	var hs = 8;
+	headObj.scale.set(hs,hs,hs);
 
 	var user = {
-		position: [0,10,-10],
-		orientation: [0,0,0,0],
-		chairNum: 3, // of 7
+		position: [0,6,0],
+		hmdPosition: [0,0,0],
+		hmdOrientation: [0,0,0,0],
+		chairNum: 3,
 		headObj: headObj
 	};
 
+	me = user;
+
+	// tmp, don't need own
 	scene.add(headObj);
-	console.log(headObj); 
 
 	users.push(user);
+}
+
+function createUserMesh() {
+	var geo = new THREE.BoxGeometry(0.7, 0.35, 0.35);
+	var mat = new THREE.MeshPhongMaterial({ color: 0x00f0ff });
+	var mesh = new THREE.Mesh(geo, mat);
+
+	return mesh;	
 }
 
 function setupScene() {
@@ -201,7 +263,6 @@ function setupChairs() {
 	var callbackFinished = function(obj) {
 		var chairs = new THREE.Object3D();
 
-		var numChairs = 7;
 		var chairWidth = 80;
 
 		for (var i = 0; i < numChairs; i++) {
@@ -221,6 +282,12 @@ function setupChairs() {
 	};
 
 	loader.load('models/chair.json', callbackFinished);
+}
+
+function getChairPos(n) {
+	var pos = [0,10,-10];
+	pos[0] = n*10 - 0.1;
+	return pos;
 }
 
 function setupLoader() {
@@ -364,19 +431,36 @@ function onWindowResize() {
 }
 
 function keyPressed (e) {
-	console.log(e.keyCode);
-
-	if (e.keyCode == 'R'.charCodeAt(0)) {
-		console.log(vrControls._vrInput);
-		vrControls._vrInput.zeroSensor();
-	} else if (e.keyCode == 'F'.charCodeAt(0)) {
-		enterTheRift();
-	} else if (e.keyCode == ' '.charCodeAt(0)) {
-		video.paused ? video.play() : video.pause();
-	} else if (e.keyCode == 'O'.charCodeAt(0)) {
-		moveScreen(-10);
-	} else if (e.keyCode == 'P'.charCodeAt(0)) {
-		moveScreen(10);
+	switch (e.keyCode) {
+		case 82: // R
+			vrControls._vrInput.zeroSensor();
+			break;
+		case 70: // F
+			enterTheRift();
+			break;
+		case 32: // space
+			video.paused ? video.play() : video.pause();
+			break;
+		case 79: // O
+			moveScreen(-10);
+			break;
+		case 80: // P
+			moveScreen(10);
+			break;
+		case 37: // left
+			moveSeats(-1, 0);
+			break;
+		case 39: // right
+			moveSeats(1, 0);
+			break;
+		case 38: // up
+			moveSeats(0, -1);
+			break;
+		case 40: // down
+			moveSeats(0, 1);
+			break;
+		default:
+			break;
 	}
 }
 
@@ -387,16 +471,33 @@ function enterTheRift() {
 	vrEffect.setFullScreen(true);
 }
 
+function moveSeats(dSeat, dRow) {
+	var newChairNum = me.chairNum + dSeat;
+
+	newChairNum = Math.max(Math.min(newChairNum, numChairs), 0);
+
+	me.chairNum = newChairNum;
+}
+
 function moveScreen(d) {
 	var min = -240;
 	var max = -30;
 	var newZ = _screen.position.z + d;
 	var newZ = Math.min(Math.max(min, newZ), max);
 	_screen.position.setZ(newZ);
+
+	if (config.social) {
+		roomRef.update({
+			screenDist: newZ
+		});		
+	}
 }
+
 
 function animate(t) {
 	requestAnimationFrame(animate);
+
+	var dt = clock.getDelta();
 
 	//cube mode
 	for (var i = 0; i < objects.length; i++) {
@@ -412,20 +513,31 @@ function animate(t) {
 		}
 	}
 
-	var vrState = vrControls.getVRState();
-	var s = 0.1;
 
-	var pos = [0,6,0];
+
+	var _pos = [me.position[0], me.position[1], me.position[2]];
+	var vrState = vrControls.getVRState();
+
+	updateUsers(dt, vrState);
+
+
+	var s = 4;
 	if (vrState) {
 		var vrPos = vrState.hmd.position;
-		pos[0] = pos[0] + vrPos[0]*s;
-		pos[1] = pos[1] + vrPos[1]*s;
-		pos[2] = pos[2] + vrPos[2]*s;
+		var vrOr = vrState.hmd.rotation;
+
+		//console.log(vrState);
+
+		me.hmdPosition = [vrPos[0], vrPos[1], vrPos[2]];
+		me.hmdOrientation = [vrOr[0], vrOr[1], vrOr[2], vrOr[3]];
+
+		_pos[0] = _pos[0] + vrPos[0]*s;
+		_pos[1] = _pos[1] + vrPos[1]*s;
+		_pos[2] = _pos[2] + vrPos[2]*s;
 	}
 
-	camera.position.fromArray(pos);
+	camera.position.fromArray(_pos);
 
-	updateUsers(t, vrState);
 
 	if (video.readyState === video.HAVE_ENOUGH_DATA) {
 		if (texture)
@@ -438,16 +550,37 @@ function animate(t) {
 	time = Date.now();
 }
 
-function updateUsers(t, vrState) {
-	if (vrState && users.length) {
-		users[0].orientation = vrState.hmd.rotation;
+function updateUsers(dt, vrState) {
+	var fps = 2;
+	lastUpdate += dt;
+	if (lastUpdate > 1/fps) {
+		lastUpdate = 0;
+	} else {
+		return;
 	}
+
+	if (vrState) {
+		//console.log(me.hmdPosition);
+
+		setUserPosition();
+	}
+
 
 	for (var i = 0; i < users.length; i++) {
 		var u = users[i];
 
-		u.headObj.position.fromArray( u.position );
-		u.headObj.quaternion.fromArray( u.orientation );
+		u.headObj.position.fromArray( u.hmdPosition );
+		u.headObj.quaternion.fromArray( u.hmdOrientation );
 	}
+}
+
+function setUserPosition() {
+	if (!config.social)
+		return;
+
+	myRef.set({
+		position: me.hmdPosition,
+		orientation: me.hmdOrientation
+	});
 }
 
